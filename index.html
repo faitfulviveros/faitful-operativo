@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Faitful — Operativo</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display&family=DM+Sans:wght@300;400;500&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --v:#2D5A27;--vl:#4A7C3F;--vs:#EBF2E8;--vb:#C5DDB8;
+  --n:#D4622A;--cr:#F7F3EE;--tx:#1C2419;--ts:#5A6B56;
+  --wh:#FFFFFF;--br:#D8E4D0;
+  --ad-bg:#E8F5E2;--ad-tx:#2D5A27;
+  --ar-bg:#FAEEE6;--ar-tx:#9B3F15;
+  --ep-bg:#EEF4FF;--ep-tx:#2040A0;
+  --ng-bg:#FFF8E0;--ng-tx:#7A5800;
+}
+body{font-family:'DM Sans',sans-serif;background:var(--cr);color:var(--tx);min-height:100vh}
+
+/* LOGIN */
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--cr)}
+.login-box{background:var(--wh);border:1px solid var(--br);border-radius:16px;padding:2.5rem 2rem;width:340px;text-align:center}
+.login-box h1{font-family:'DM Serif Display',serif;font-size:28px;color:var(--v);font-weight:400;margin-bottom:.3rem}
+.login-box p{font-size:13px;color:var(--ts);margin-bottom:1.5rem}
+.login-box input{width:100%;font-size:14px;font-family:'DM Sans',sans-serif;padding:10px 14px;border:1px solid var(--br);border-radius:8px;background:var(--cr);color:var(--tx);outline:none;text-align:center;letter-spacing:.1em;margin-bottom:1rem}
+.login-box input:focus{border-color:var(--vb);background:var(--vs)}
+.login-box button{width:100%;font-size:14px;font-family:'DM Sans',sans-serif;background:var(--v);color:#fff;border:none;border-radius:8px;padding:10px;cursor:pointer}
+.login-box button:hover{background:var(--vl)}
+.login-error{font-size:12px;color:var(--n);margin-top:.5rem;display:none}
+
+/* APP */
+#app-screen{display:none;max-width:980px;margin:0 auto;padding:1.2rem 1rem 3rem}
+
+.hdr{display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid var(--vb);padding-bottom:.8rem;margin-bottom:1rem}
+.hdr h1{font-family:'DM Serif Display',serif;font-size:24px;color:var(--v);font-weight:400}
+.hdr-right{display:flex;align-items:center;gap:8px}
+.hdr-date{font-size:12px;color:var(--ts)}
+.btn-back{font-size:12px;color:var(--v);background:none;border:1px solid var(--vb);border-radius:6px;padding:4px 12px;cursor:pointer;font-family:'DM Sans',sans-serif}
+.btn-back:hover{background:var(--vs)}
+.btn-export{font-size:12px;color:var(--v);background:var(--vs);border:1px solid var(--vb);border-radius:6px;padding:4px 12px;cursor:pointer;font-family:'DM Sans',sans-serif}
+.btn-logout{font-size:12px;color:var(--ts);background:none;border:1px solid var(--br);border-radius:6px;padding:4px 10px;cursor:pointer;font-family:'DM Sans',sans-serif}
+
+/* ALERTAS */
+.alertas{background:#FFF8F0;border:1px solid #F5C49A;border-radius:10px;padding:.75rem 1rem;margin-bottom:1rem}
+.alerta-title{font-size:12px;font-weight:500;color:var(--n);margin-bottom:.5rem}
+.alerta-item{font-size:12px;color:var(--tx);padding:3px 0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #FDE5CC}
+.alerta-item:last-child{border-bottom:none}
+.alerta-item-nombre{flex:1;cursor:pointer}
+.alerta-item-nombre:hover{color:var(--v);text-decoration:underline}
+.alerta-dias{font-size:11px;font-weight:500;color:var(--n);background:#FAEEE6;padding:2px 8px;border-radius:10px}
+
+/* RESUMEN */
+.resumen{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:1rem}
+.rc{background:var(--wh);border:1px solid var(--br);border-radius:10px;padding:.65rem .9rem}
+.rc-num{font-family:'DM Serif Display',serif;font-size:26px;color:var(--v)}
+.rc-num.alerta{color:var(--n)}
+.rc-lbl{font-size:11px;color:var(--ts);margin-top:1px}
+
+/* BLOQUES */
+.bloque{margin-bottom:1.2rem}
+.bloque-tit{font-size:11px;font-weight:500;letter-spacing:.08em;text-transform:uppercase;color:var(--ts);margin-bottom:.5rem}
+.tema-card{background:var(--wh);border:1px solid var(--br);border-radius:10px;padding:.75rem 1rem;margin-bottom:6px;display:flex;align-items:center;gap:10px;cursor:pointer;transition:box-shadow .15s}
+.tema-card:hover{box-shadow:0 2px 10px rgba(45,90,39,.1)}
+.tema-card.vencido{border-left:3px solid var(--n)}
+.tc-nombre{flex:1;font-size:14px;font-weight:500}
+.tc-equipo{font-size:12px;color:var(--ts);min-width:100px}
+.tc-freq{font-size:11px;color:var(--ts);background:var(--cr);border-radius:4px;padding:2px 6px;min-width:42px;text-align:center}
+.tc-pen{font-size:11px;color:var(--n);font-weight:500;min-width:80px;text-align:center}
+.badge{font-size:11px;font-weight:500;padding:3px 10px;border-radius:20px;cursor:pointer;border:none;font-family:'DM Sans',sans-serif;white-space:nowrap}
+.badge.al-dia{background:var(--ad-bg);color:var(--ad-tx)}
+.badge.a-revisar{background:var(--ar-bg);color:var(--ar-tx)}
+.tc-proxima{font-size:11px;color:var(--ts);min-width:100px;text-align:right}
+.tc-proxima.urgente{color:var(--n);font-weight:500}
+
+/* DETALLE */
+.det-meta{font-size:12px;color:var(--ts);margin-top:3px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.urgente{color:var(--n);font-weight:500}
+.det-tabs{display:flex;gap:4px;margin:1rem 0;border-bottom:1px solid var(--br)}
+.tab-btn{font-size:13px;font-family:'DM Sans',sans-serif;background:none;border:none;border-bottom:2px solid transparent;padding:6px 14px;cursor:pointer;color:var(--ts);margin-bottom:-1px}
+.tab-btn.active{color:var(--v);border-bottom-color:var(--v);font-weight:500}
+.tab-content{display:none}.tab-content.active{display:block}
+
+/* SUBTEMAS */
+.subtema-bloque{margin-bottom:1.1rem}
+.sub-tit{font-size:12px;font-weight:500;color:var(--v);text-transform:uppercase;letter-spacing:.06em;margin-bottom:.4rem;display:flex;align-items:center;justify-content:space-between}
+.accion-row{background:var(--wh);border:1px solid var(--br);border-radius:8px;padding:.6rem .9rem;margin-bottom:5px;display:grid;grid-template-columns:76px 1fr 1fr 110px 78px 110px 24px;gap:8px;align-items:center;font-size:12px}
+@media(max-width:700px){.accion-row{grid-template-columns:1fr 1fr;gap:6px}.ar-fecha,.ar-cuando{display:none}}
+.ar-fecha{color:var(--ts);font-size:11px}
+.ar-def{font-size:13px;font-weight:500;color:var(--tx)}
+.ar-acc{color:var(--ts);font-size:12px}
+.ar-cuando{color:var(--ts);font-size:11px}
+.quien-sel{font-size:11px;font-family:'DM Sans',sans-serif;padding:3px 6px;border-radius:6px;border:1px solid var(--br);background:var(--cr);color:var(--tx);cursor:pointer;outline:none;width:100%}
+.status-sel{font-size:10px;font-weight:500;padding:2px 6px;border-radius:12px;border:none;cursor:pointer;font-family:'DM Sans',sans-serif;-webkit-appearance:none;appearance:none;outline:none;width:100%}
+.status-sel.pendiente{background:var(--ar-bg);color:var(--ar-tx)}
+.status-sel.en-proceso,.status-sel.iniciado{background:var(--ep-bg);color:var(--ep-tx)}
+.status-sel.evaluando,.status-sel.negociando{background:var(--ng-bg);color:var(--ng-tx)}
+.status-sel.terminado{background:var(--ad-bg);color:var(--ad-tx)}
+.status-sel.otro{background:var(--cr);color:var(--ts)}
+.btn-del-row{background:none;border:none;cursor:pointer;color:var(--br);font-size:14px;padding:0}
+.btn-del-row:hover{color:var(--n)}
+.empty-sub{font-size:12px;color:var(--ts);font-style:italic;padding:.3rem 0}
+.btn-add-sub{font-size:12px;color:var(--vl);background:none;border:none;cursor:pointer;font-family:'DM Sans',sans-serif}
+.btn-add-sub:hover{text-decoration:underline}
+
+/* FORM */
+.form-nueva{background:var(--vs);border:1px solid var(--vb);border-radius:8px;padding:.75rem 1rem;margin-top:.4rem}
+.form-nueva h4{font-size:12px;font-weight:500;color:var(--v);margin-bottom:.5rem}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:7px}
+@media(max-width:600px){.form-grid{grid-template-columns:1fr}}
+.form-grid input,.form-grid select{font-size:12px;font-family:'DM Sans',sans-serif;padding:6px 8px;border:1px solid var(--vb);border-radius:6px;background:var(--wh);color:var(--tx);outline:none;width:100%}
+.form-grid .full{grid-column:1/-1}
+.form-btns{display:flex;justify-content:flex-end;gap:8px}
+.btn-sm-cancel{font-size:12px;font-family:'DM Sans',sans-serif;background:none;border:1px solid var(--br);border-radius:6px;padding:5px 12px;cursor:pointer;color:var(--ts)}
+.btn-sm-save{font-size:12px;font-family:'DM Sans',sans-serif;background:var(--v);color:#fff;border:none;border-radius:6px;padding:5px 14px;cursor:pointer}
+
+/* PENDIENTES */
+.pen-tema-lbl{font-size:10px;color:var(--ts);margin-bottom:3px;font-weight:500;text-transform:uppercase;letter-spacing:.05em;margin-top:8px}
+.pen-tema-lbl:first-child{margin-top:0}
+
+/* OVERLAY / MODAL */
+.overlay{position:fixed;inset:0;background:rgba(28,36,25,.45);display:flex;align-items:center;justify-content:center;z-index:200}
+.modal{background:var(--wh);border-radius:14px;padding:1.4rem;width:460px;max-width:95vw;max-height:85vh;overflow-y:auto}
+.modal h3{font-family:'DM Serif Display',serif;font-size:18px;color:var(--v);font-weight:400;margin-bottom:1rem}
+.modal label{font-size:12px;color:var(--ts);display:block;margin-bottom:3px;margin-top:10px}
+.modal input,.modal select{width:100%;font-size:13px;font-family:'DM Sans',sans-serif;padding:7px 10px;border:1px solid var(--br);border-radius:7px;background:var(--cr);color:var(--tx);outline:none}
+.modal textarea{width:100%;font-size:12px;font-family:monospace;padding:10px;border:1px solid var(--br);border-radius:7px;background:var(--cr);color:var(--tx);outline:none;resize:none;height:260px;line-height:1.6}
+.modal-btns{display:flex;justify-content:flex-end;gap:8px;margin-top:1rem}
+.btn-cancel{font-size:13px;font-family:'DM Sans',sans-serif;background:none;border:1px solid var(--br);border-radius:7px;padding:6px 16px;cursor:pointer;color:var(--ts)}
+.btn-confirm{font-size:13px;font-family:'DM Sans',sans-serif;background:var(--v);color:#fff;border:none;border-radius:7px;padding:6px 16px;cursor:pointer}
+.btn-copy{font-size:13px;font-family:'DM Sans',sans-serif;background:var(--v);color:#fff;border:none;border-radius:7px;padding:6px 16px;cursor:pointer}
+.btn-copy.copied{background:var(--vl)}
+
+/* SYNC INDICATOR */
+.sync{position:fixed;bottom:1rem;right:1rem;font-size:11px;color:var(--ts);background:var(--wh);border:1px solid var(--br);border-radius:20px;padding:4px 12px;opacity:0;transition:opacity .3s}
+.sync.show{opacity:1}
+</style>
+</head>
+<body>
+
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <h1>Faitful</h1>
+    <p>Operativo interno · Ingresá la clave</p>
+    <input type="password" id="pwd-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')checkLogin()">
+    <button onclick="checkLogin()">Ingresar</button>
+    <div class="login-error" id="login-error">Clave incorrecta</div>
+  </div>
+</div>
+
+<!-- APP -->
+<div id="app-screen">
+  <div id="main-content"></div>
+</div>
+
+<div class="sync" id="sync-indicator">Guardando...</div>
+
+<script>
+// ============================================================
+// CONFIGURACIÓN — REEMPLAZÁ ESTOS VALORES CON LOS TUYOS
+// ============================================================
+const SUPABASE_URL = 'https://duopdsfunahojkygdkas.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_e4SNDJFxENBefCf3y5t6AA_3Lwl4g9_';
+const APP_PASSWORD = 'faitful2026'; // Cambiá esta clave
+// ============================================================
+
+const { createClient } = supabase;
+const db = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+const HOY = new Date();
+const HOY_STR = HOY.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
+
+const EQUIPO_BASE = ['Pablo','Agustín','Melisa','Charly','Lizardo','Ana','Gonzalo','Brian','Cande','Matías','Roger','Facu','Flor'];
+
+// ============================================================
+// DATA BASE — contenido del Drive
+// ============================================================
+const DATA_BASE = {bloques:[
+ {id:'ventas',titulo:'Ventas & Marketing',temas:[
+  {id:'productos',nombre:'Productos',equipo:'Pablo y Agus',freq:'C/15',ultima:'15/01/2026',estado:'a-revisar',subtemas:{
+   'Pedidos':[
+    {id:'p1',fecha:'19/12/2025',definicion:'BUFFA - Pedido set grande baja temporada',accion:'Pedir plazo 30/60/90',cuando:'19/12/2025',quien:'Pablo',status:'en-proceso'},
+    {id:'p2',fecha:'15/01/2026',definicion:'Reunión proveedor velas',accion:'Aclarar políticas comerciales y de pago',cuando:'Fin febrero',quien:'Agustín',status:'pendiente'},
+   ],
+   'Precios':[
+    {id:'p3',fecha:'09/03/2026',definicion:'Cerámica Roma - primer pedido $6-8M',accion:'Diferimiento 30-90 días, 30% descuento',cuando:'1ra semana marzo',quien:'Agustín',status:'pendiente'},
+    {id:'p4',fecha:'09/03/2026',definicion:'Cotizar con Moca modelos grandes',accion:'Paralelamente a Roma',cuando:'1ra semana marzo',quien:'Pablo',status:'pendiente'},
+   ],
+   'Productos':[
+    {id:'p5',fecha:'15/01/2026',definicion:'Cerámica Roma',accion:'Evaluando propuesta',cuando:'—',quien:'Pablo',status:'evaluando'},
+    {id:'p6',fecha:'15/01/2026',definicion:'Cestería artesanal',accion:'Llamar y responder propuesta',cuando:'—',quien:'Pablo',status:'negociando'},
+    {id:'p7',fecha:'09/03/2026',definicion:'Macetería importada',accion:'Retomar presupuestos temporada',cuando:'Marzo',quien:'Agustín',status:'evaluando'},
+   ],
+   'Ofertas':[
+    {id:'p8',fecha:'01/03',definicion:'Semillas',accion:'Aumentar a $3.900',cuando:'Marzo',quien:'Agustín',status:'pendiente'},
+    {id:'p9',fecha:'01/03',definicion:'Espaldar hierro jardineras',accion:'Ver modelo elevate.com.ar',cuando:'Marzo',quien:'Pablo',status:'pendiente'},
+    {id:'p10',fecha:'01/03',definicion:'Propuesta tutor nuevo',accion:'Imagen a Emilio para muestra',cuando:'Marzo',quien:'Pablo',status:'pendiente'},
+    {id:'p11',fecha:'02/03',definicion:'Fertifox',accion:'Mover 1lt antes que 200cc',cuando:'Marzo',quien:'Pablo',status:'pendiente'},
+    {id:'p12',fecha:'08/03',definicion:'Diete 5 litros',accion:'Poner 3x2',cuando:'Marzo',quien:'Pablo',status:'pendiente'},
+   ],
+   'Proyección':[],'Calidad':[],'Stock':[],'Escobar proveedor interno':[],
+  }},
+  {id:'estrategias',nombre:'Estrategias de venta',equipo:'Pablo y Agus',freq:'C/7',ultima:'19/12/2025',estado:'a-revisar',subtemas:{'Planificación':[],'Equipo':[],'Procesos':[],'Ejecución':[]}},
+  {id:'ventas_tema',nombre:'Ventas',equipo:'Ana y Gonzalo',freq:'C/7',ultima:'22/12/2025',estado:'a-revisar',subtemas:{
+   'Venta externa':[],
+   'Venta local':[
+    {id:'v1',fecha:'22/12/2025',definicion:'Brian inicia en ventas salón',accion:'Buscar reemplazo en caja',cuando:'Enero',quien:'Pablo',status:'iniciado'},
+    {id:'v2',fecha:'03/02/2026',definicion:'En pausa proceso Brian',accion:'3 meses con objetivo sin reuniones',cuando:'Febrero',quien:'Agustín',status:'iniciado'},
+    {id:'v3',fecha:'03/02/2026',definicion:'No se llega al % de atención en salón',accion:'Enero 55%, objetivo 60%',cuando:'Febrero',quien:'Pablo',status:'pendiente'},
+    {id:'v4',fecha:'02/03/2026',definicion:'Brian más tickets',accion:'30 por día',cuando:'Marzo',quien:'Pablo',status:'iniciado'},
+   ],
+   'Seguimiento de ventas':[
+    {id:'v5',fecha:'22/12/2025',definicion:'Baja ventas - Fede',accion:'Exigirle más atención',cuando:'22/12/2025',quien:'Agustín',status:'iniciado'},
+    {id:'v6',fecha:'22/12/2025',definicion:'Baja ventas - Facu',accion:'Darle frío para que se enfoque',cuando:'22/12/2025',quien:'Agustín',status:'iniciado'},
+    {id:'v7',fecha:'03/02/2026',definicion:'Todos cumplieron objetivo',accion:'Reforzar compromiso',cuando:'Febrero',quien:'Agustín',status:'iniciado'},
+   ],
+   'Herramientas':[],
+  }},
+  {id:'layout',nombre:'Lay out local',equipo:'Brian, Cande',freq:'C/15',ultima:'22/12/2025',estado:'a-revisar',subtemas:{
+   'Góndolas':[{id:'l1',fecha:'03/02/2026',definicion:'Góndolas plantas grandes',accion:'Limpieza 1-2 veces/mes a fondo',cuando:'Febrero',quien:'Ana',status:'pendiente'}],
+   'Mesas':[{id:'l2',fecha:'22/12/2025',definicion:'Cambio mesas centrales',accion:'Mesa1 orquídeas / Mesa2 Buffa / Mesa3 Roto / Mesa4 cerámica XXL',cuando:'05/01/2026',quien:'Pablo',status:'en-proceso'}],
+   'Carros':[{id:'l3',fecha:'03/02/2026',definicion:'Carro de oportunidades/merma',accion:'Sin venta 2 semanas → merma',cuando:'Febrero',quien:'Pablo',status:'terminado'}],
+   'Islas':[
+    {id:'l4',fecha:'22/12/2025',definicion:'Isla redonda 1 - navidad',accion:'Hasta agotar stock',cuando:'29/12/2025',quien:'Matías',status:'terminado'},
+    {id:'l5',fecha:'30/12/2025',definicion:'Cambiar de lugar hierros',accion:'Mejorar venta cruzada',cuando:'—',quien:'Matías',status:'en-proceso'},
+   ],
+   'Almacén':[{id:'l6',fecha:'03/02/2026',definicion:'Orden - pedidos en zona inyectado',accion:'Resolver desorden',cuando:'Febrero',quien:'Pablo',status:'pendiente'}],
+  }},
+  {id:'marketing',nombre:'Marketing',equipo:'Melisa',freq:'C/7',ultima:'15/01/2026',estado:'a-revisar',subtemas:{
+   'Diseño/Flor':[
+    {id:'m1',fecha:'07/01/2026',definicion:'Editar fondos plantas artificiales',accion:'Fotos fondo blanco ref tamaño',cuando:'Enero',quien:'Melisa',status:'pendiente'},
+    {id:'m2',fecha:'07/01/2026',definicion:'Bolsa de pometina - retomar',accion:'—',cuando:'Enero',quien:'Melisa',status:'pendiente'},
+    {id:'m3',fecha:'07/01/2026',definicion:'Editar fondo plantas más vendidas',accion:'3 propuestas cuáles',cuando:'Enero',quien:'Melisa',status:'pendiente'},
+    {id:'m4',fecha:'07/01/2026',definicion:'Diseño carteles plantas Acuña',accion:'Hacer diseño',cuando:'Enero',quien:'Melisa',status:'pendiente'},
+   ],
+   'Pauta/Tomas':[
+    {id:'m5',fecha:'07/01/2026',definicion:'Videos 6 y 7 pauta set',accion:'Más lentos y comerciales',cuando:'Semana 07/01',quien:'Melisa',status:'terminado'},
+    {id:'m6',fecha:'07/01/2026',definicion:'Pauta obras',accion:'Videos cortos, insistir con Syria',cuando:'Enero',quien:'Melisa',status:'pendiente'},
+   ],
+   'Contenido redes':[{id:'m7',fecha:'27/01/2026',definicion:'Kick off agencia Clica',accion:'Preparar preguntas',cuando:'21/01',quien:'Agustín',status:'pendiente'}],
+   'Mailing':[{id:'m8',fecha:'14/01/2026',definicion:'Mailing todas las semanas',accion:'2 venta 2 info',cuando:'Todo el mes',quien:'Melisa',status:'otro'}],
+   'Marketing de salida':[
+    {id:'m9',fecha:'07/01/2026',definicion:'Carteles precio Acuña',accion:'Comprar carteles prueba',cuando:'1ra quincena enero',quien:'Agustín',status:'pendiente'},
+    {id:'m10',fecha:'28/01/2026',definicion:'Góndola colonial y terracota',accion:'Sectorizar espacios maceta',cuando:'Febrero',quien:'Melisa',status:'pendiente'},
+   ],
+   'Marketing de entrada':[{id:'m11',fecha:'07/01/2026',definicion:'Promover comments Google',accion:'Cupón cajero tras validar comentario',cuando:'03/02/2026',quien:'Melisa',status:'iniciado'}],
+   'Experiencia ecommerce':[
+    {id:'m12',fecha:'07/01/2026',definicion:'3P mejoras experiencia ecommerce',accion:'Evaluarlo como cliente',cuando:'Enero',quien:'Melisa',status:'en-proceso'},
+    {id:'m13',fecha:'07/01/2026',definicion:'Bolsas ecommerce',accion:'Modelo chico hasta $500',cuando:'Enero',quien:'Melisa',status:'pendiente'},
+    {id:'m14',fecha:'07/01/2026',definicion:'Cajas ecommerce',accion:'Modelo chico hasta $500',cuando:'Enero',quien:'Melisa',status:'pendiente'},
+   ],
+  }},
+ ]},
+ {id:'operaciones',titulo:'Operaciones',temas:[
+  {id:'caja',nombre:'Caja',equipo:'Valentina',freq:'C/7',ultima:'23/02/2026',estado:'a-revisar',subtemas:{
+   'Productos y cross selling':[{id:'c1',fecha:'10/12',definicion:'Cross sell zona caja',accion:'Incentivar venta asociada',cuando:'10/12',quien:'Agustín',status:'terminado'}],
+   'Layout':[{id:'c2',fecha:'—',definicion:'Góndola aromatizantes zona caja',accion:'Incentivar venta diaria',cuando:'Fines diciembre',quien:'Agustín',status:'pendiente'}],
+   'Responsables':[{id:'c3',fecha:'23/02/2026',definicion:'Renuncia de Valentina',accion:'Reorganizar responsables de caja',cuando:'Marzo',quien:'Pablo',status:'pendiente'}],
+   'Procesos':[
+    {id:'c4',fecha:'10/12',definicion:'Proceso cross sell cajeros',accion:'Estructura y objetivos venta asociada',cuando:'17/12',quien:'Pablo',status:'pendiente'},
+    {id:'c5',fecha:'23/02/2026',definicion:'Cierres de caja',accion:'Definir responsables',cuando:'Marzo',quien:'Pablo',status:'pendiente'},
+   ],
+   'Despacho':[{id:'c6',fecha:'23/02/2026',definicion:'Definir puestos nuevos',accion:'Esperar RRHH con candidatos',cuando:'Marzo',quien:'Pablo',status:'otro'}],
+   'Estrategias de ventas':[],'Equipo':[],
+  }},
+  {id:'servicios',nombre:'Servicio empresas',equipo:'Pablo y Agus',freq:'C/15',ultima:'17/12/2025',estado:'a-revisar',subtemas:{
+   'Costos y Rentabilidad':[{id:'se1',fecha:'16/12',definicion:'Establecer precios en sistema',accion:'100% full / 50% bonif / 100% bonificado',cuando:'—',quien:'Pablo',status:'otro'}],
+   'Equipo y Operativa':[],'Seguimiento del Servicio':[],'Cobros y Facturación':[],'Administración y Documentación':[],
+  }},
+  {id:'mantolocal',nombre:'Mantenimiento local',equipo:'Lizardo',freq:'C/15',ultima:'23/02/2026',estado:'a-revisar',subtemas:{
+   'Iluminación':[],'Limpieza':[],'Orden':[],'Vidrieras y Exhibiciones':[],
+   'Estructurales':[{id:'ml1',fecha:'03/02/2026',definicion:'Matafuegos vencidos',accion:'Cambio',cuando:'03/02',quien:'Agustín',status:'terminado'}],
+  }},
+  {id:'operativos',nombre:'Operativos local',equipo:'Pablo y Agus',freq:'C/7',ultima:'23/02/2026',estado:'a-revisar',subtemas:{
+   'Equipo y Roles':[
+    {id:'op1',fecha:'—',definicion:'Matías bajo rendimiento',accion:'Hablar después de vacaciones',cuando:'Semana 03/02',quien:'Pablo',status:'terminado'},
+    {id:'op2',fecha:'—',definicion:'Matías y Roger bajar horas',accion:'Hacer número para ingreso nuevo operario',cuando:'Marzo',quien:'Pablo',status:'en-proceso'},
+   ],
+   'Responsabilidades':[],'Tareas diarias y semanales':[],'Procesos operativos':[],'Herramientas':[],'Seguimiento y KPIs':[],
+  }},
+  {id:'equipo_cultura',nombre:'Equipo — Desarrollo y Cultura',equipo:'Pablo y Agus',freq:'C/15',ultima:'23/02/2026',estado:'a-revisar',subtemas:{
+   'Seguimiento 1:1':[],'Mentoría':[],'Desarrollo y Capacitación':[],'Oportunidades de Crecimiento':[],
+   'Responsabilidades claras por área':[{id:'ec1',fecha:'15/12',definicion:'Responsables oficina web domingo',accion:'—',cuando:'—',quien:'Pablo',status:'otro'}],
+   'Cultura 3P':[],
+  }},
+  {id:'logistica',nombre:'Logística — Local + Web + ML',equipo:'Charly',freq:'C/7',ultima:'23/02/2026',estado:'a-revisar',subtemas:{
+   'Coordinación Local–ML–Web':[
+    {id:'lg1',fecha:'30/12',definicion:'Salida de Alejandro',accion:'Que se vaya solo',cuando:'—',quien:'Pablo',status:'terminado'},
+    {id:'lg2',fecha:'14/02/2026',definicion:'Recorridos con remito',accion:'Solo remitos, no facturas',cuando:'Febrero',quien:'Pablo',status:'pendiente'},
+    {id:'lg3',fecha:'18/03/2026',definicion:'Tensión Daniel',accion:'Reunión para negociar condiciones',cuando:'Semana 23 marzo',quien:'Pablo',status:'pendiente'},
+   ],
+   'Procesos de Pago y Control':[
+    {id:'lg4',fecha:'10/12',definicion:'Remitos lunes, pagos lunes-martes',accion:'Criterio cobro seguro fleteros',cuando:'10/12',quien:'Pablo',status:'terminado'},
+    {id:'lg5',fecha:'14/12',definicion:'App para fleteros Daniel y Dario',accion:'Pago transferencia, no más salida caja',cuando:'14/12',quien:'Pablo',status:'pendiente'},
+   ],
+   'Carga y Seguimiento de Pedidos':[
+    {id:'lg6',fecha:'10/12',definicion:'Drive control fletes CABA y GBA',accion:'Equipo carga, fleteros validan con foto',cuando:'10/12',quien:'Pablo',status:'terminado'},
+    {id:'lg7',fecha:'02/03/2026',definicion:'Fotos productos Carlos',accion:'Controlar calidad mercadería enviada',cuando:'Marzo',quien:'Pablo',status:'pendiente'},
+   ],
+   'Costos de Logística':[
+    {id:'lg8',fecha:'10/12',definicion:'Precios envío: CABA $22k / Z2 $30.5k / Z3 $42.3k / Z4 $60.5k',accion:'Definir en sistema',cuando:'17/12',quien:'Pablo',status:'terminado'},
+    {id:'lg9',fecha:'23/02/2026',definicion:'Sumar costo armado web y subida local',accion:'Web +$10k, local +$5k, ascensor $5k',cuando:'Febrero',quien:'Pablo',status:'pendiente'},
+   ],
+   'Responsabilidades':[],'3P de Logística':[],
+  }},
+  {id:'rrhh',nombre:'RRHH',equipo:'Pablo y Agus',freq:'C/15',ultima:'23/02/2026',estado:'a-revisar',subtemas:{
+   'Selección y Reclutamiento':[{id:'rr1',fecha:'23/02/2026',definicion:'Selección Aarón y Macarena',accion:'Reemplazo Facundo y Miranda',cuando:'Última semana febrero',quien:'Pablo',status:'iniciado'}],
+   'Formación y Seguimiento':[],'Riesgos Laborales':[],'Administración':[],
+   'Horarios y Vacaciones':[{id:'rr2',fecha:'26/01/2026',definicion:'Fichada al estar en puesto. Salida antes de vestuarios.',accion:'Informar equipo',cuando:'Febrero',quien:'Pablo',status:'pendiente'}],
+   'Licencias':[],'Clima y Tensiones':[],
+  }},
+ ]},
+ {id:'admin',titulo:'Proveedores & Administración',temas:[
+  {id:'admingen',nombre:'Administración general',equipo:'Pablo y Agus',freq:'C/15',ultima:'09/03/2026',estado:'al-dia',subtemas:{
+   'Servicios':[{id:'ag1',fecha:'19/12/2025',definicion:'Estructura protectora medidor de gas',accion:'Habilitar red de gas',cuando:'30/01/2026',quien:'Pablo',status:'en-proceso'}],
+   'Administración General':[],
+  }},
+  {id:'proveedores',nombre:'Proveedores',equipo:'Pablo y Agus',freq:'C/15',ultima:'15/01/2026',estado:'a-revisar',subtemas:{
+   'Pedidos':[
+    {id:'pv1',fecha:'19/12/2025',definicion:'BUFFA - Pedido set grande',accion:'Pedir plazo 30/60/90',cuando:'19/12/2025',quien:'Pablo',status:'en-proceso'},
+    {id:'pv2',fecha:'15/01/2026',definicion:'Reunión proveedor velas',accion:'Aclarar políticas comerciales',cuando:'Fin febrero',quien:'Agustín',status:'pendiente'},
+   ],
+   'Precios':[{id:'pv3',fecha:'09/03/2026',definicion:'Cerámica Roma primer pedido',accion:'$6-8M, 30-90 días, 30% desc',cuando:'1ra semana marzo',quien:'Agustín',status:'pendiente'}],
+   'Nuevos proveedores':[],'Pagos':[],
+  }},
+  {id:'proyectos',nombre:'Proyectos 2026–2027',equipo:'Agustín-Pablo',freq:'C/15',ultima:'09/03/2026',estado:'a-revisar',subtemas:{
+   'Prioridad 1 — Alta':[
+    {id:'pr1',fecha:'19/12/2025',definicion:'Habilitar gas local',accion:'Habilitar red de gas',cuando:'30/01/2026',quien:'Pablo',status:'en-proceso'},
+    {id:'pr2',fecha:'—',definicion:'Vidrieras (estructurar-seguimiento)',accion:'—',cuando:'—',quien:'Pablo',status:'pendiente'},
+    {id:'pr3',fecha:'—',definicion:'Luces techo zona caja quemadas',accion:'—',cuando:'—',quien:'Pablo',status:'pendiente'},
+    {id:'pr8',fecha:'—',definicion:'Ecommerce UEN con recurso propio',accion:'—',cuando:'—',quien:'Agustín',status:'pendiente'},
+   ],
+   'Prioridad 2 — Media':[
+    {id:'pr11',fecha:'—',definicion:'Evaluar goteras para tela nueva',accion:'—',cuando:'—',quien:'Lizardo',status:'pendiente'},
+    {id:'pr15',fecha:'—',definicion:'Góndola rotomoldeado entrada',accion:'—',cuando:'—',quien:'Pablo',status:'pendiente'},
+   ],
+   'Prioridad 3 — Baja':[
+    {id:'pr19',fecha:'—',definicion:'Góndola barro colonial',accion:'—',cuando:'—',quien:'Pablo',status:'pendiente'},
+   ],
+  }},
+ ]},
+]};
+
+// ============================================================
+// STATE
+// ============================================================
+let state = {
+  bloques: DATA_BASE.bloques,
+  acciones: {},
+  statusOverrides: {},
+  quienOverrides: {},
+  temasEstado: {},
+  temasUltima: {},
+  equipoExtra: []
+};
+let vista = 'dashboard';
+let temaActivo = null;
+let tabActiva = 'subtemas';
+let formAbierto = null;
+let modalEl = null;
+let saveTimer = null;
+
+// ============================================================
+// LOGIN
+// ============================================================
+function checkLogin() {
+  const val = document.getElementById('pwd-input').value;
+  if (val === APP_PASSWORD) {
+    sessionStorage.setItem('faitful_auth', '1');
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('app-screen').style.display = 'block';
+    initApp();
+  } else {
+    document.getElementById('login-error').style.display = 'block';
+    document.getElementById('pwd-input').value = '';
+    document.getElementById('pwd-input').focus();
+  }
+}
+
+function logout() {
+  sessionStorage.removeItem('faitful_auth');
+  location.reload();
+}
+
+// ============================================================
+// SUPABASE — load/save
+// ============================================================
+async function loadFromSupabase() {
+  try {
+    const { data, error } = await db.from('operativo_state').select('*').eq('id', 1).single();
+    if (error && error.code !== 'PGRST116') { console.error(error); return; }
+    if (data && data.payload) {
+      const d = data.payload;
+      state.acciones = d.acciones || {};
+      state.statusOverrides = d.statusOverrides || {};
+      state.quienOverrides = d.quienOverrides || {};
+      state.temasEstado = d.temasEstado || {};
+      state.temasUltima = d.temasUltima || {};
+      state.equipoExtra = d.equipoExtra || [];
+    }
+  } catch(e) { console.error('Supabase load error:', e); }
+  // aplicar overrides a temas
+  for (const b of state.bloques) for (const t of b.temas) {
+    if (state.temasEstado[t.id]) t.estado = state.temasEstado[t.id];
+    if (state.temasUltima[t.id]) t.ultima = state.temasUltima[t.id];
+  }
+}
+
+async function saveToSupabase() {
+  const temasEstado = {}, temasUltima = {};
+  for (const b of state.bloques) for (const t of b.temas) {
+    temasEstado[t.id] = t.estado;
+    temasUltima[t.id] = t.ultima;
+  }
+  const payload = { acciones: state.acciones, statusOverrides: state.statusOverrides, quienOverrides: state.quienOverrides, temasEstado, temasUltima, equipoExtra: state.equipoExtra };
+  try {
+    await db.from('operativo_state').upsert({ id: 1, payload, updated_at: new Date().toISOString() });
+  } catch(e) { console.error('Supabase save error:', e); }
+}
+
+function scheduleSave() {
+  const indicator = document.getElementById('sync-indicator');
+  if (indicator) { indicator.classList.add('show'); }
+  if (saveTimer) clearTimeout(saveTimer);
+  saveTimer = setTimeout(async () => {
+    await saveToSupabase();
+    if (indicator) { indicator.textContent = '✓ Guardado'; setTimeout(() => indicator.classList.remove('show'), 1500); }
+  }, 800);
+}
+
+// ============================================================
+// HELPERS
+// ============================================================
+function uid() { return 'u' + Date.now() + Math.random().toString(36).slice(2,5); }
+function parsF(s) { if (!s || s === '—') return null; const p = s.split('/'); if (p.length < 3) return null; return new Date(+p[2], +p[1]-1, +p[0]); }
+function diasDesde(s) { const f = parsF(s); if (!f) return 0; return Math.floor((HOY - f) / 86400000); }
+function freqD(f) { return parseInt((f || '99').replace('C/', '')) || 99; }
+function vencido(t) { return diasDesde(t.ultima) > freqD(t.freq); }
+function proxRev(t) {
+  const f = parsF(t.ultima); if (!f) return '—';
+  const d = new Date(f); d.setDate(d.getDate() + freqD(t.freq));
+  const diff = Math.floor((d - HOY) / 86400000);
+  if (diff < 0) return `Hace ${Math.abs(diff)}d`;
+  if (diff === 0) return 'Hoy';
+  if (diff === 1) return 'Mañana';
+  return `En ${diff}d (${d.toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit'})})`;
+}
+function proxUrgente(t) { const f = parsF(t.ultima); if (!f) return true; const d = new Date(f); d.setDate(d.getDate() + freqD(t.freq)); return (d - HOY) / 86400000 < 3; }
+function toInp(s) { if (!s || s === '—') return ''; const p = s.split('/'); if (p.length < 3) return ''; return `${p[2]}-${p[1].padStart(2,'0')}-${p[0].padStart(2,'0')}`; }
+function fromInp(s) { if (!s) return ''; const [y,m,d] = s.split('-'); return `${d}/${m}/${y}`; }
+function getTema(id) { for (const b of state.bloques) for (const t of b.temas) if (t.id === id) return t; return null; }
+function getEquipo() { return [...EQUIPO_BASE, ...state.equipoExtra]; }
+
+function bClass(s) {
+  const k = (s || '').toLowerCase().trim();
+  if (k === 'pendiente') return 'pendiente';
+  if (['en-proceso','en proceso','en proceo'].includes(k)) return 'en-proceso';
+  if (k === 'iniciado') return 'iniciado';
+  if (['evaluando','negociando','propuesta enviada a proveedor'].includes(k)) return 'evaluando';
+  if (['terminado','resuelto','al día'].includes(k)) return 'terminado';
+  return 'otro';
+}
+
+function getAcciones(temaId) {
+  const t = getTema(temaId); if (!t) return {};
+  const base = {};
+  for (const [sub, rows] of Object.entries(t.subtemas)) {
+    base[sub] = rows.map(r => ({...r, status: state.statusOverrides[r.id] || r.status, quien: state.quienOverrides[r.id] || r.quien || ''}));
+  }
+  const extra = state.acciones[temaId] || {};
+  for (const [sub, rows] of Object.entries(extra)) {
+    if (!base[sub]) base[sub] = [];
+    const withOv = rows.map(r => ({...r, status: state.statusOverrides[r.id] || r.status, quien: state.quienOverrides[r.id] || r.quien || ''}));
+    base[sub] = [...withOv, ...base[sub]];
+  }
+  return base;
+}
+
+function pendientesDeTema(id) {
+  return Object.values(getAcciones(id)).flat().filter(r => ['pendiente','en-proceso','iniciado'].includes(bClass(r.status))).length;
+}
+function todosLosPendientes() {
+  const res = [];
+  for (const b of state.bloques) for (const t of b.temas)
+    for (const [sub, rows] of Object.entries(getAcciones(t.id)))
+      for (const r of rows)
+        if (['pendiente','en-proceso','iniciado'].includes(bClass(r.status)))
+          res.push({...r, _tema: t.nombre, _sub: sub, _temaId: t.id});
+  return res;
+}
+function temasVencidos() {
+  return state.bloques.flatMap(b => b.temas.filter(t => vencido(t))).sort((a,b) => diasDesde(b.ultima) - diasDesde(a.ultima));
+}
+function totTemas() { return state.bloques.reduce((a,b) => a + b.temas.length, 0); }
+function totAlDia() { return state.bloques.reduce((a,b) => a + b.temas.filter(t => t.estado === 'al-dia').length, 0); }
+function totVencidos() { return state.bloques.reduce((a,b) => a + b.temas.filter(t => vencido(t)).length, 0); }
+
+// ============================================================
+// RENDER
+// ============================================================
+function render() { vista === 'dashboard' ? renderDash() : renderDet(); }
+
+function renderAlertas() {
+  const venc = temasVencidos();
+  if (venc.length === 0) return '';
+  const items = venc.slice(0,5).map(t => `
+    <div class="alerta-item">
+      <span class="alerta-item-nombre" onclick="abrirTema('${t.id}')">${t.nombre}</span>
+      <span class="alerta-dias">${diasDesde(t.ultima)}d sin revisar</span>
+    </div>`).join('');
+  return `<div class="alertas">
+    <div class="alerta-title">⚠ ${venc.length} tema${venc.length > 1 ? 's' : ''} vencido${venc.length > 1 ? 's' : ''}</div>
+    ${items}
+    ${venc.length > 5 ? `<div style="font-size:11px;color:var(--ts);margin-top:4px">...y ${venc.length-5} más</div>` : ''}
+  </div>`;
+}
+
+function renderDash() {
+  const pen = todosLosPendientes().length;
+  let h = `<div class="hdr">
+    <h1>Faitful — Operativo</h1>
+    <div class="hdr-right">
+      <span class="hdr-date">${HOY_STR}</span>
+      <button class="btn-export" onclick="abrirExport()">Exportar ↗</button>
+      <button class="btn-logout" onclick="logout()">Salir</button>
+    </div>
+  </div>
+  ${renderAlertas()}
+  <div class="resumen">
+    <div class="rc"><div class="rc-num">${totTemas()}</div><div class="rc-lbl">temas</div></div>
+    <div class="rc"><div class="rc-num">${totAlDia()}</div><div class="rc-lbl">al día</div></div>
+    <div class="rc"><div class="rc-num ${totVencidos() > 0 ? 'alerta' : ''}">${totVencidos()}</div><div class="rc-lbl">vencidos</div></div>
+    <div class="rc"><div class="rc-num ${pen > 0 ? 'alerta' : ''}">${pen}</div><div class="rc-lbl">pendientes</div></div>
+  </div>`;
+  for (const b of state.bloques) {
+    h += `<div class="bloque"><div class="bloque-tit">${b.titulo}</div>`;
+    for (const t of b.temas) {
+      const p = pendientesDeTema(t.id);
+      const pr = proxRev(t); const urg = proxUrgente(t);
+      h += `<div class="tema-card ${vencido(t) ? 'vencido' : ''}" onclick="abrirTema('${t.id}')">
+        <span class="tc-nombre">${t.nombre}</span>
+        <span class="tc-equipo">${t.equipo || '—'}</span>
+        <span class="tc-freq">${t.freq}</span>
+        <span class="tc-pen">${p > 0 ? `${p} pendiente${p > 1 ? 's' : ''}` : '—'}</span>
+        <span class="badge ${t.estado}" onclick="event.stopPropagation();toggleEstado('${t.id}')">${t.estado === 'al-dia' ? 'Al día' : 'A revisar'}</span>
+        <span class="tc-proxima ${urg ? 'urgente' : ''}">${pr}</span>
+      </div>`;
+    }
+    h += `</div>`;
+  }
+  document.getElementById('main-content').innerHTML = h;
+}
+
+function statusOptions(current) {
+  const opts = ['pendiente','en-proceso','iniciado','evaluando','negociando','terminado','otro'];
+  const labels = {pendiente:'Pendiente','en-proceso':'En proceso',iniciado:'Iniciado',evaluando:'Evaluando',negociando:'Negociando',terminado:'Terminado',otro:'—'};
+  const cur = bClass(current);
+  return opts.map(o => `<option value="${o}" ${cur === o ? 'selected' : ''}>${labels[o]}</option>`).join('');
+}
+function quienOptions(current) {
+  const eq = getEquipo();
+  return `<option value="">—</option>${eq.map(e => `<option value="${e}" ${e === current ? 'selected' : ''}>${e}</option>`).join('')}<option value="__nuevo__">+ Agregar...</option>`;
+}
+
+function renderDet() {
+  const t = getTema(temaActivo); if (!t) { vista = 'dashboard'; render(); return; }
+  const pen = todosLosPendientes().filter(p => p._temaId === temaActivo);
+  const allAc = getAcciones(temaActivo);
+  const pr = proxRev(t); const urg = proxUrgente(t);
+
+  let h = `<div class="hdr">
+    <h1>${t.nombre}</h1>
+    <div class="hdr-right">
+      <span class="hdr-date">${HOY_STR}</span>
+      <button class="btn-export" onclick="abrirExport('${t.id}')">Exportar ↗</button>
+      <button class="btn-back" onclick="volverDash()">← Inicio</button>
+    </div>
+  </div>
+  <div style="margin-bottom:.8rem">
+    <div class="det-meta">
+      <span>${t.equipo || '—'}</span><span>·</span><span>${t.freq}</span><span>·</span>
+      <span>Última: ${t.ultima}</span><span>·</span>
+      <span class="${urg ? 'urgente' : ''}">Próxima: ${pr}</span><span>·</span>
+      <span class="badge ${t.estado}" onclick="toggleEstado('${t.id}')" style="font-size:11px;padding:2px 9px">${t.estado === 'al-dia' ? 'Al día' : 'A revisar'}</span>
+    </div>
+  </div>
+  <div class="det-tabs">
+    <button class="tab-btn ${tabActiva === 'subtemas' ? 'active' : ''}" onclick="setTab('subtemas')">Subtemas & Acciones</button>
+    <button class="tab-btn ${tabActiva === 'pendientes' ? 'active' : ''}" onclick="setTab('pendientes')">Pendientes (${pen.length})</button>
+  </div>`;
+
+  h += `<div class="tab-content ${tabActiva === 'subtemas' ? 'active' : ''}" id="tab-sub">`;
+  for (const [sub, rows] of Object.entries(allAc)) {
+    h += `<div class="subtema-bloque"><div class="sub-tit"><span>${sub}</span>
+      <button class="btn-add-sub" onclick="abrirForm('${sub.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">+ agregar</button></div>`;
+    if (rows.length === 0) h += `<div class="empty-sub">Sin registros</div>`;
+    for (const r of rows) {
+      const sc = bClass(r.status);
+      h += `<div class="accion-row">
+        <span class="ar-fecha">${r.fecha || '—'}</span>
+        <span class="ar-def">${r.definicion || '—'}</span>
+        <span class="ar-acc">${r.accion || '—'}</span>
+        <select class="quien-sel" onchange="handleQuienChange('${r.id}',this.value)">${quienOptions(r.quien || '')}</select>
+        <span class="ar-cuando">${r.cuando || '—'}</span>
+        <select id="sel-${r.id}" class="status-sel ${sc}" onchange="changeStatus('${r.id}',this.value)">${statusOptions(r.status)}</select>
+        <button class="btn-del-row" onclick="eliminarAccion('${sub.replace(/'/g,"\\'").replace(/"/g,'&quot;')}','${r.id}')">×</button>
+      </div>`;
+    }
+    if (formAbierto === sub) {
+      h += `<div class="form-nueva"><h4>Nueva entrada — ${sub}</h4>
+        <div class="form-grid">
+          <div><input type="date" id="f-fecha" value="${toInp(HOY_STR)}"></div>
+          <div><select id="f-status">
+            <option value="pendiente">Pendiente</option><option value="en-proceso">En proceso</option>
+            <option value="iniciado">Iniciado</option><option value="evaluando">Evaluando</option>
+            <option value="negociando">Negociando</option><option value="terminado">Terminado</option>
+          </select></div>
+          <div class="full"><input type="text" id="f-def" placeholder="Definición / decisión"></div>
+          <div class="full"><input type="text" id="f-acc" placeholder="Acción concreta"></div>
+          <div><select id="f-quien">${quienOptions('')}</select></div>
+          <div><input type="text" id="f-cuando" placeholder="Cuándo"></div>
+        </div>
+        <div class="form-btns">
+          <button class="btn-sm-cancel" onclick="cerrarForm()">Cancelar</button>
+          <button class="btn-sm-save" onclick="guardarAccion('${sub.replace(/'/g,"\\'").replace(/"/g,'&quot;')}')">Guardar</button>
+        </div></div>`;
+    }
+    h += `</div>`;
+  }
+  h += `</div>`;
+
+  h += `<div class="tab-content ${tabActiva === 'pendientes' ? 'active' : ''}" id="tab-pen">`;
+  if (pen.length === 0) h += `<div style="font-size:13px;color:var(--ts);font-style:italic;padding:.5rem 0">Sin pendientes activos</div>`;
+  for (const r of pen) {
+    h += `<div class="pen-tema-lbl">${r._sub}</div>
+    <div class="accion-row" style="border-left:3px solid var(--n)">
+      <span class="ar-fecha">${r.fecha || '—'}</span>
+      <span class="ar-def">${r.definicion || '—'}</span>
+      <span class="ar-acc">${r.accion || '—'}</span>
+      <select class="quien-sel" onchange="handleQuienChange('${r.id}',this.value)">${quienOptions(r.quien || '')}</select>
+      <span class="ar-cuando">${r.cuando || '—'}</span>
+      <select id="sel-${r.id}" class="status-sel ${bClass(r.status)}" onchange="changeStatus('${r.id}',this.value)">${statusOptions(r.status)}</select>
+      <span></span>
+    </div>`;
+  }
+  h += `</div>`;
+  document.getElementById('main-content').innerHTML = h;
+}
+
+// ============================================================
+// ACCIONES
+// ============================================================
+function changeStatus(rowId, newStatus) {
+  state.statusOverrides[rowId] = newStatus;
+  scheduleSave();
+  const sel = document.getElementById('sel-' + rowId);
+  if (sel) sel.className = 'status-sel ' + bClass(newStatus);
+}
+
+function handleQuienChange(rowId, val) {
+  if (val === '__nuevo__') {
+    const nombre = (prompt('Nombre:') || '').trim();
+    if (!nombre) return;
+    if (!state.equipoExtra.includes(nombre)) state.equipoExtra.push(nombre);
+    state.quienOverrides[rowId] = nombre;
+    scheduleSave(); render();
+  } else {
+    state.quienOverrides[rowId] = val;
+    scheduleSave();
+  }
+}
+
+function abrirTema(id) { temaActivo = id; vista = 'detalle'; tabActiva = 'subtemas'; formAbierto = null; render(); }
+function volverDash() { vista = 'dashboard'; temaActivo = null; formAbierto = null; render(); }
+function setTab(t) { tabActiva = t; formAbierto = null; render(); }
+function abrirForm(sub) { formAbierto = sub; render(); setTimeout(() => { const e = document.getElementById('f-def'); if (e) e.focus(); }, 50); }
+function cerrarForm() { formAbierto = null; render(); }
+
+function guardarAccion(sub) {
+  const def = (document.getElementById('f-def') || {}).value || '';
+  if (!def.trim()) return;
+  const fecha = fromInp((document.getElementById('f-fecha') || {}).value || '');
+  const acc = (document.getElementById('f-acc') || {}).value || '';
+  let quien = (document.getElementById('f-quien') || {}).value || '';
+  if (quien === '__nuevo__') quien = '';
+  const cuando = (document.getElementById('f-cuando') || {}).value || '';
+  const status = (document.getElementById('f-status') || {}).value || 'pendiente';
+  if (!state.acciones[temaActivo]) state.acciones[temaActivo] = {};
+  if (!state.acciones[temaActivo][sub]) state.acciones[temaActivo][sub] = [];
+  state.acciones[temaActivo][sub].unshift({ id: uid(), fecha, definicion: def, accion: acc, quien, cuando, status });
+  scheduleSave(); formAbierto = null; render();
+}
+
+function eliminarAccion(sub, id) {
+  if (state.acciones[temaActivo]?.[sub]) {
+    state.acciones[temaActivo][sub] = state.acciones[temaActivo][sub].filter(r => r.id !== id);
+    delete state.statusOverrides[id]; delete state.quienOverrides[id];
+    scheduleSave(); render();
+  }
+}
+
+function toggleEstado(temaId) {
+  const t = getTema(temaId);
+  t.estado = t.estado === 'al-dia' ? 'a-revisar' : 'al-dia';
+  if (t.estado === 'al-dia') t.ultima = HOY_STR;
+  scheduleSave(); render();
+}
+
+// ============================================================
+// EXPORTAR AGENDA
+// ============================================================
+function abrirExport(temaId) {
+  const texto = generarTexto(temaId);
+  const ov = document.createElement('div'); ov.className = 'overlay';
+  ov.innerHTML = `<div class="modal">
+    <h3>${temaId ? getTema(temaId).nombre + ' — Pendientes' : 'Agenda completa'}</h3>
+    <p style="font-size:12px;color:var(--ts);margin-bottom:.8rem">Listo para copiar y pegar en WhatsApp o mail</p>
+    <textarea id="export-txt" readonly>${texto}</textarea>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModal()">Cerrar</button>
+      <button class="btn-copy" id="copy-btn" onclick="copiarTexto()">Copiar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov); modalEl = ov;
+}
+
+function generarTexto(temaId) {
+  const lineas = [];
+  lineas.push(`📋 FAITFUL — Operativo ${HOY_STR}`);
+  lineas.push('');
+  if (temaId) {
+    const t = getTema(temaId);
+    lineas.push(`*${t.nombre.toUpperCase()}*`);
+    lineas.push(`Próxima revisión: ${proxRev(t)}`);
+    lineas.push('');
+    for (const [sub, rows] of Object.entries(getAcciones(temaId))) {
+      const activos = rows.filter(r => ['pendiente','en-proceso','iniciado'].includes(bClass(r.status)));
+      if (activos.length === 0) continue;
+      lineas.push(`_${sub}_`);
+      for (const r of activos) {
+        const quien = r.quien ? ` → ${r.quien}` : '';
+        const cuando = r.cuando && r.cuando !== '—' ? ` (${r.cuando})` : '';
+        lineas.push(`• ${r.definicion}${cuando}${quien}`);
+      }
+      lineas.push('');
+    }
+  } else {
+    const venc = temasVencidos();
+    if (venc.length > 0) {
+      lineas.push(`⚠️ *VENCIDOS (${venc.length})*`);
+      for (const t of venc) lineas.push(`• ${t.nombre} — ${diasDesde(t.ultima)}d sin revisar`);
+      lineas.push('');
+    }
+    for (const b of state.bloques) {
+      const pens = [];
+      for (const t of b.temas) {
+        const p = pendientesDeTema(t.id);
+        if (p > 0) pens.push(`• ${t.nombre}: ${p} pendiente${p > 1 ? 's' : ''}`);
+      }
+      if (pens.length > 0) {
+        lineas.push(`*${b.titulo.toUpperCase()}*`);
+        pens.forEach(p => lineas.push(p));
+        lineas.push('');
+      }
+    }
+    lineas.push(`Total: ${todosLosPendientes().length} pendientes activos`);
+  }
+  return lineas.join('\n');
+}
+
+function copiarTexto() {
+  const ta = document.getElementById('export-txt'); if (!ta) return;
+  navigator.clipboard.writeText(ta.value).then(() => {
+    const btn = document.getElementById('copy-btn');
+    if (btn) { btn.textContent = '¡Copiado!'; btn.classList.add('copied'); setTimeout(() => { btn.textContent = 'Copiar'; btn.classList.remove('copied'); }, 2000); }
+  }).catch(() => { ta.select(); document.execCommand('copy'); });
+}
+
+function cerrarModal() { if (modalEl) { modalEl.remove(); modalEl = null; } }
+
+// ============================================================
+// INIT
+// ============================================================
+async function initApp() {
+  document.getElementById('main-content').innerHTML = '<div style="text-align:center;padding:3rem;color:var(--ts)">Cargando datos...</div>';
+  await loadFromSupabase();
+  render();
+}
+
+// Auto-check session
+if (sessionStorage.getItem('faitful_auth') === '1') {
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app-screen').style.display = 'block';
+  initApp();
+}
+</script>
+</body>
+</html>
