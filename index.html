@@ -364,7 +364,9 @@ let state = {
   quienOverrides: {},
   temasEstado: {},
   temasUltima: {},
-  equipoExtra: []
+  equipoExtra: [],
+  proyOverrides: {},
+  proyExtras: []
 };
 let vista = 'dashboard';
 let temaActivo = null;
@@ -410,6 +412,8 @@ async function loadFromSupabase() {
       state.temasEstado = d.temasEstado || {};
       state.temasUltima = d.temasUltima || {};
       state.equipoExtra = d.equipoExtra || [];
+      state.proyOverrides = d.proyOverrides || {};
+      state.proyExtras = d.proyExtras || [];
     }
   } catch(e) { console.error('Supabase load error:', e); }
   // aplicar overrides a temas
@@ -425,7 +429,7 @@ async function saveToSupabase() {
     temasEstado[t.id] = t.estado;
     temasUltima[t.id] = t.ultima;
   }
-  const payload = { acciones: state.acciones, statusOverrides: state.statusOverrides, quienOverrides: state.quienOverrides, temasEstado, temasUltima, equipoExtra: state.equipoExtra };
+  const payload = { acciones: state.acciones, statusOverrides: state.statusOverrides, quienOverrides: state.quienOverrides, temasEstado, temasUltima, equipoExtra: state.equipoExtra, proyOverrides: state.proyOverrides, proyExtras: state.proyExtras };
   try {
     await db.from('operativo_state').upsert({ id: 1, payload, updated_at: new Date().toISOString() });
   } catch(e) { console.error('Supabase save error:', e); }
@@ -579,8 +583,166 @@ function quienOptions(current) {
   return `<option value="">—</option>${eq.map(e => `<option value="${e}" ${e === current ? 'selected' : ''}>${e}</option>`).join('')}<option value="__nuevo__">+ Agregar...</option>`;
 }
 
+// ============================================================
+// PROYECTOS — data y render especial
+// ============================================================
+const PROYECTOS_BASE = [
+  {id:'pr1',tema:'Habilitar gas local',inout:'OUT',facilidad:1,prioridad:1,area:'',inicio:'19/12/2025',objetivo:'Habilitar red de gas',fin:'30/01/2026',status:'en-proceso',quien:'Pablo',comentario:''},
+  {id:'pr2',tema:'Vidrieras (estructurar-seguimiento)',inout:'OUT',facilidad:1,prioridad:1,area:'Comercial',inicio:'',objetivo:'',fin:'',status:'pendiente',quien:'Pablo',comentario:''},
+  {id:'pr3',tema:'Luces techo zona caja quemadas',inout:'OUT',facilidad:1,prioridad:1,area:'',inicio:'',objetivo:'',fin:'',status:'pendiente',quien:'Pablo',comentario:''},
+  {id:'pr4',tema:'Plantas medianas — KPI seguimiento',inout:'IN',facilidad:2,prioridad:1,area:'Operaciones',inicio:'',objetivo:'',fin:'',status:'pendiente',quien:'Pablo',comentario:''},
+  {id:'pr5',tema:'Plantas grandes — KPI seguimiento',inout:'IN',facilidad:2,prioridad:1,area:'Operaciones',inicio:'',objetivo:'',fin:'',status:'pendiente',quien:'Pablo',comentario:''},
+  {id:'pr6',tema:'Góndolas sector web (barro)',inout:'OUT',facilidad:2,prioridad:1,area:'Operaciones',inicio:'',objetivo:'',fin:'',status:'pendiente',quien:'Pablo',comentario:''},
+  {id:'pr7',tema:'Protocolo corte de luz',inout:'IN',facilidad:2,prioridad:1,area:'',inicio:'',objetivo:'',fin:'',status:'pendiente',quien:'Pablo',comentario:''},
+  {id:'pr8',tema:'Ecommerce — UEN con recurso propio y mando medio',inout:'IN',facilidad:2,prioridad:1,area:'Web',inicio:'',objetivo:'',fin:'',status:'pendiente',quien:'Agustín',comentario:''},
+  {id:'pr9',tema:'Piso colocación (ver en abril)',inout:'IN',facilidad:2,prioridad:1,area:'Mantenimiento',inicio:'',objetivo:'',fin:'',status:'pendiente',quien:'Pablo',comentario:''},
+  {id:'pr10',tema:'Góndolas plantas medianas',inout:'OUT',facilidad:3,prioridad:1,area:'Lay out',inicio:'',objetivo:'',fin:'',status:'pendiente',quien:'Pablo',comentario:''},
+  {id:'pr11',tema:'Evaluar goteras para tela nueva',inout:'IN',facilidad:2,prioridad:2,area:'Mantenimiento',inicio:'',objetivo:'',fin:'',status:'pendiente',quien:'Lizardo',comentario:''},
+  {id:'pr12',tema:'Geotextil góndolas plantas chicas o placa plástica',inout:'IN',facilidad:2,prioridad:2,area:'Mantenimiento',inicio:'',objetivo:'',fin:'',status:'pendiente',quien:'Lizardo',comentario:''},
+  {id:'pr13',tema:'Sustitución cerámica cilindro (nac/imp)',inout:'OUT',facilidad:2,prioridad:2,area:'',inicio:'',objetivo:'',fin:'',status:'pendiente',quien:'Pablo',comentario:''},
+  {id:'pr14',tema:'Góndola estantería caja',inout:'OUT',facilidad:2,prioridad:2,area:'',inicio:'',objetivo:'',fin:'',status:'pendiente',quien:'Pablo',comentario:''},
+  {id:'pr15',tema:'Góndola rotomoldeado entrada',inout:'OUT',facilidad:1,prioridad:2,area:'',inicio:'',objetivo:'',fin:'',status:'pendiente',quien:'Pablo',comentario:''},
+  {id:'pr16',tema:'Luces puntera góndola plantas',inout:'OUT',facilidad:2,prioridad:2,area:'',inicio:'',objetivo:'',fin:'',status:'pendiente',quien:'Pablo',comentario:''},
+  {id:'pr17',tema:'Puntera góndola fondo sustratos (altura)',inout:'OUT',facilidad:3,prioridad:2,area:'',inicio:'',objetivo:'',fin:'',status:'pendiente',quien:'Pablo',comentario:''},
+  {id:'pr18',tema:'Agrandar oficina web para venta externa',inout:'OUT',facilidad:3,prioridad:2,area:'',inicio:'',objetivo:'',fin:'',status:'pendiente',quien:'Pablo',comentario:''},
+  {id:'pr19',tema:'Góndola barro colonial (espalda con plantas merma)',inout:'OUT',facilidad:2,prioridad:3,area:'',inicio:'',objetivo:'',fin:'',status:'pendiente',quien:'Pablo',comentario:''},
+];
+
+function getProy() {
+  const base = PROYECTOS_BASE.map(p => ({...p, ...(state.proyOverrides[p.id]||{})}));
+  const extras = state.proyExtras || [];
+  return [...base, ...extras].sort((a,b) => a.prioridad - b.prioridad || a.facilidad - b.facilidad);
+}
+
+function updateProy(id, field, val) {
+  const isExtra = (state.proyExtras||[]).find(e => e.id === id);
+  if (isExtra) { isExtra[field] = val; }
+  else { if (!state.proyOverrides[id]) state.proyOverrides[id] = {}; state.proyOverrides[id][field] = val; }
+  scheduleSave();
+}
+
+function prClass(p) { return p==1?'pr1':p==2?'pr2':'pr3'; }
+function fClass(f) { return f==1?'f1':f==2?'f2':'f3'; }
+function prLabel(p) { return p==1?'1 alta':p==2?'2 media':'3 baja'; }
+function fLabel(f) { return f==1?'1 fácil':f==2?'2 media':'3 difícil'; }
+
+function renderProyectos() {
+  const all = getProy();
+  const p1 = all.filter(p=>p.prioridad===1).length;
+  const p2 = all.filter(p=>p.prioridad===2).length;
+  const p3 = all.filter(p=>p.prioridad===3).length;
+
+  let h = `<div class="hdr">
+    <h1>Proyectos 2026–2027</h1>
+    <div class="hdr-right">
+      <button class="btn-back" onclick="volverDash()">← Inicio</button>
+    </div>
+  </div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:1rem">
+    <span style="font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;background:#FFF3E0;color:#9B4D00;border:1px solid #FFCC80">P1: ${p1}</span>
+    <span style="font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;background:#EEF4FF;color:#1A3FA0;border:1px solid #90CAF9">P2: ${p2}</span>
+    <span style="font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;background:#F3F3F3;color:#444;border:1px solid #CCC">P3: ${p3}</span>
+    <button onclick="agregarProy()" style="margin-left:auto;font-size:12px;font-family:'DM Sans',sans-serif;background:var(--v);color:#fff;border:none;border-radius:6px;padding:4px 12px;cursor:pointer">+ Agregar</button>
+  </div>`;
+
+  const grupos = [{p:1,label:'Prioridad 1 — Alta',color:'#D4622A'},{p:2,label:'Prioridad 2 — Media',color:'#5B8CE0'},{p:3,label:'Prioridad 3 — Baja',color:'#AAA'}];
+  for (const g of grupos) {
+    const rows = all.filter(p => p.prioridad === g.p);
+    if (rows.length === 0) continue;
+    h += `<div style="margin-bottom:1.2rem">
+      <div style="font-size:11px;font-weight:500;text-transform:uppercase;letter-spacing:.07em;color:var(--ts);margin-bottom:.5rem;display:flex;align-items:center;gap:6px">
+        <span style="width:10px;height:10px;border-radius:50%;background:${g.color};display:inline-block"></span>${g.label}
+      </div>`;
+    for (const r of rows) {
+      const sc = bClass(r.status);
+      const isExtra = (state.proyExtras||[]).find(e => e.id === r.id);
+      h += `<div class="accion-row" style="border-left:3px solid ${g.color}">
+        <div class="ar-top">
+          <span class="ar-def">${r.tema}</span>
+          ${isExtra ? `<button class="ar-del" onclick="eliminarProy('${r.id}')">×</button>` : ''}
+        </div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:5px">
+          <span style="font-size:10px;font-weight:500;padding:2px 7px;border-radius:10px;background:${r.inout==='IN'?'var(--ad-bg)':'var(--ar-bg)'};color:${r.inout==='IN'?'var(--ad-tx)':'var(--ar-tx)'}">${r.inout}</span>
+          <select onchange="updateProy('${r.id}','facilidad',parseInt(this.value));renderProyectos()" style="font-size:10px;font-family:'DM Sans',sans-serif;padding:2px 6px;border-radius:6px;border:1px solid var(--br);background:var(--cr);cursor:pointer;outline:none">
+            <option value="1" ${r.facilidad==1?'selected':''}>Fácil</option>
+            <option value="2" ${r.facilidad==2?'selected':''}>Media</option>
+            <option value="3" ${r.facilidad==3?'selected':''}>Difícil</option>
+          </select>
+          <select onchange="updateProy('${r.id}','prioridad',parseInt(this.value));renderProyectos()" style="font-size:10px;font-family:'DM Sans',sans-serif;padding:2px 6px;border-radius:6px;border:1px solid var(--br);background:var(--cr);cursor:pointer;outline:none">
+            <option value="1" ${r.prioridad==1?'selected':''}>P1 alta</option>
+            <option value="2" ${r.prioridad==2?'selected':''}>P2 media</option>
+            <option value="3" ${r.prioridad==3?'selected':''}>P3 baja</option>
+          </select>
+          ${r.area ? `<span style="font-size:10px;color:var(--ts)">${r.area}</span>` : ''}
+        </div>
+        <div class="ar-bottom">
+          ${r.inicio ? `<span class="ar-fecha">${r.inicio}</span>` : ''}
+          ${r.fin ? `<span class="ar-cuando">→ ${r.fin}</span>` : ''}
+          <span class="ar-spacer"></span>
+          <select class="quien-sel" onchange="updateProy('${r.id}','quien',this.value);handleQuienChange('__proy_${r.id}',this.value)" style="max-width:100px">${quienOptions(r.quien||'')}</select>
+          <select class="status-sel ${sc}" onchange="updateProy('${r.id}','status',this.value);this.className='status-sel '+bClass(this.value)">
+            <option value="pendiente" ${sc==='pendiente'?'selected':''}>Pendiente</option>
+            <option value="en-proceso" ${sc==='en-proceso'?'selected':''}>En proceso</option>
+            <option value="terminado" ${sc==='terminado'?'selected':''}>Terminado</option>
+          </select>
+        </div>
+        ${r.objetivo ? `<div style="font-size:11px;color:var(--ts);margin-top:4px">🎯 ${r.objetivo}</div>` : ''}
+        ${r.comentario ? `<div style="font-size:11px;color:var(--ts);margin-top:2px">💬 ${r.comentario}</div>` : ''}
+      </div>`;
+    }
+    h += `</div>`;
+  }
+  document.getElementById('main-content').innerHTML = h;
+}
+
+function agregarProy() {
+  const ov = document.createElement('div'); ov.className = 'overlay';
+  ov.innerHTML = `<div class="modal">
+    <h3>Nuevo proyecto</h3>
+    <label>Nombre</label><input id="m-tema" placeholder="Ej: Renovar sector plantas">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px">
+      <div><label>IN / OUT</label><select id="m-inout"><option value="IN">IN</option><option value="OUT">OUT</option></select></div>
+      <div><label>Prioridad</label><select id="m-prio"><option value="1">1 Alta</option><option value="2">2 Media</option><option value="3">3 Baja</option></select></div>
+      <div><label>Facilidad</label><select id="m-fac"><option value="1">1 Fácil</option><option value="2">2 Media</option><option value="3">3 Difícil</option></select></div>
+    </div>
+    <label>Área</label><input id="m-area" placeholder="Comercial, Web, Mantenimiento...">
+    <label>Objetivo</label><input id="m-obj" placeholder="Qué se quiere lograr">
+    <label>Quién</label><select id="m-quien">${quienOptions('')}</select>
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="cerrarModal()">Cancelar</button>
+      <button class="btn-confirm" onclick="confirmarProy()">Agregar</button>
+    </div>
+  </div>`;
+  document.body.appendChild(ov); modalEl = ov;
+  setTimeout(() => { const e = document.getElementById('m-tema'); if(e) e.focus(); }, 50);
+}
+
+function confirmarProy() {
+  const tema = (document.getElementById('m-tema')||{}).value||'';
+  if (!tema.trim()) return;
+  if (!state.proyExtras) state.proyExtras = [];
+  state.proyExtras.push({
+    id: uid(), tema,
+    inout: (document.getElementById('m-inout')||{}).value||'IN',
+    prioridad: parseInt((document.getElementById('m-prio')||{}).value||1),
+    facilidad: parseInt((document.getElementById('m-fac')||{}).value||1),
+    area: (document.getElementById('m-area')||{}).value||'',
+    objetivo: (document.getElementById('m-obj')||{}).value||'',
+    quien: (document.getElementById('m-quien')||{}).value||'',
+    fin:'',inicio:'',status:'pendiente',comentario:'',
+  });
+  scheduleSave(); cerrarModal(); renderProyectos();
+}
+
+function eliminarProy(id) {
+  state.proyExtras = (state.proyExtras||[]).filter(e => e.id !== id);
+  scheduleSave(); renderProyectos();
+}
+
 function renderDet() {
   const t = getTema(temaActivo); if (!t) { vista = 'dashboard'; render(); return; }
+  // Vista especial para Proyectos
+  if (temaActivo === 'proyectos') { renderProyectos(); return; }
   const pen = todosLosPendientes().filter(p => p._temaId === temaActivo);
   const allAc = getAcciones(temaActivo);
   const pr = proxRev(t); const urg = proxUrgente(t);
