@@ -665,7 +665,6 @@ function renderDet() {
         <select id="sel-${r.id}" class="status-sel ${bClass(r.status)}" onchange="changeStatus('${r.id}',this.value)">${statusOptions(r.status)}</select>
       </div>
     </div>`;
-    </div>`;
   }
   h += `</div>`;
   document.getElementById('main-content').innerHTML = h;
